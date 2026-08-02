@@ -4,9 +4,32 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Upload Retur</title>
+<title>Upload Retur JNT</title>
 
 <style>
+.header-box {
+    background: #003399; /* Warna biru */
+    color: #fff;
+    padding: 15px;
+    border-radius: 12px;
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+.btn-nav {
+    background: #cc0000; /* Warna merah */
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    font-weight: bold;
+    border-radius: 5px;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-block;
+    margin: 5px; /* Memberi jarak antar tombol */
+    font-size: 13px;
+}
+    
 body{
     font-family:Arial,sans-serif;
     background:#f4f4f4;
@@ -42,7 +65,7 @@ button{
 #hasil{
     margin-top:20px;
     white-space:pre-wrap;
-}
+}  
 </style>
 
 </head>
@@ -50,7 +73,11 @@ button{
 
 <div class="container">
 
-<h2>UPLOAD RETUR GLOBAL</h2>
+<div class="header-box">
+<h3> <B>UPLOAD RETUR TIKTOK TOKOPEDIA</B> </h3>
+<a href="retur.html" class="btn-nav"> SCAN RETUR</a>
+<a href="upload_spx.html" class="btn-nav">UPLOAD RETUR SPX</a>
+</div>
 
 <textarea id="rawData"
 placeholder="Paste data TikTok / Shopee di sini"></textarea>
@@ -84,7 +111,7 @@ async function uploadRetur(){
         const r = await fetch(APP_URL,{
             method:"POST",
             body:JSON.stringify({
-                source:"uploadReturText",
+                source:"uploadRetur",
                 text:text
             })
         });
