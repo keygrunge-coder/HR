@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SEKARFOOTWEAR - PUSAT KOMANDO V5</title>
+    <title> PUSAT KOMANDO V5</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#003399">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -426,7 +426,7 @@ async function saveResi(resi){
             scanHistory.unshift({ resi, status: "SUKSES", display: json.ekspedisi });
         } else if(json.status === "duplicate"){
             beepDuplicate(); setLampuBca('merah', 'Resi Dobel!');
-            robotBicara(`${ekspedisi}, dobel kasep tos di scan!`); 
+            robotBicara(`${ekspedisi}, sudah di scan!`); 
             showNotif("⚠ RESI DOBEL", "warning");
             scanHistory.unshift({ resi, status: "DUPLIKAT", display: "DOBEL" });
         } else {
