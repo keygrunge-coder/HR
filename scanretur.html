@@ -414,6 +414,21 @@ robotBicara(
 );
 
 }
+else {
+
+badge="badge-tidak";
+status="TIDAK DITEMUKAN";
+
+setLampu(
+"merah",
+"Resi Tidak Ditemukan"
+);
+
+robotBicara(
+"Resi tidak ditemukan"
+);
+
+}
 
 scanHistory.unshift({
 resi,
