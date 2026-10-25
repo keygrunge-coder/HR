@@ -46,16 +46,17 @@ button{font:inherit}
 .lamp{width:13px;height:13px;min-width:13px;border-radius:50%;background:#facc15;box-shadow:0 0 10px currentColor}
 .status-text{font-size:13px;font-weight:800;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 
-.notif{position:absolute;top:75px;left:50%;transform:translateX(-50%);z-index:80;padding:10px 18px;border-radius:25px;font-size:13px;font-weight:900;display:none;white-space:nowrap;box-shadow:0 5px 15px rgba(0,0,0,.35)}
+.notif{position:absolute;top:75px;left:50%;transform:translateX(-50%);z-index:80;padding:10px 18px;border-radius:25px;font-size:13px;font-weight:900;display:none;white-space:nowrap;max-width:94%;overflow:hidden;text-overflow:ellipsis;box-shadow:0 5px 15px rgba(0,0,0,.35)}
 .notif.success{background:#16a34a;color:#fff}
 .notif.warning{background:#f59e0b;color:#fff}
 .notif.error{background:#dc2626;color:#fff}
 
 /* BOTTOM */
-.bottom-actions{position:absolute;left:10px;right:10px;bottom:10px;z-index:40;display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px}
+.bottom-actions{position:absolute;left:10px;right:10px;bottom:10px;z-index:40;display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:7px}
 .bottom-btn{height:50px;border:0;border-radius:12px;color:#fff;background:rgba(30,41,59,.94);font-size:11px;font-weight:900;box-shadow:0 5px 14px rgba(0,0,0,.45);cursor:pointer;touch-action:manipulation;transition:.15s}
 .bottom-btn.sync{background:#2563eb}
 .bottom-btn.queue{background:#475569}
+.bottom-btn.canceled{background:#b91c1c}
 .bottom-btn.history{background:#475569}
 .bottom-btn:active{transform:scale(.97)}
 .bottom-btn:disabled{cursor:not-allowed;transform:none}
@@ -74,6 +75,13 @@ button{font:inherit}
 .tool-btn{border:0;border-radius:8px;padding:8px 10px;font-size:11px;font-weight:900;background:#e2e8f0;color:#0f172a}
 .tool-btn.danger{background:#dc2626;color:#fff}
 .search{width:100%;height:40px;border:1px solid #cbd5e1;border-radius:9px;padding:0 11px;margin-bottom:10px;outline:none}
+
+/* FORM (BATAL) */
+.form-box{margin-bottom:10px;background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:10px}
+.form-box label{display:block;font-size:10px;font-weight:900;color:#475569;margin-bottom:5px}
+.form-row{display:flex;gap:6px}
+.form-row input{flex:1;height:38px;border:1px solid #cbd5e1;border-radius:8px;padding:0 9px;text-transform:uppercase;outline:none}
+.form-row button{border:0;border-radius:8px;padding:0 12px;background:#dc2626;color:#fff;font-size:11px;font-weight:900}
 
 .list{display:flex;flex-direction:column;gap:7px}
 .item{background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:10px;display:flex;align-items:center;justify-content:space-between;gap:8px}
@@ -132,6 +140,7 @@ button{font:inherit}
     <div class="bottom-actions">
         <button id="syncButton" class="bottom-btn sync" onclick="syncKeServer()">SYNC<span id="syncCount" class="count">0</span></button>
         <button class="bottom-btn queue" onclick="openQueue()">ANTREAN<span id="queueButtonCount" class="count">0</span></button>
+        <button class="bottom-btn canceled" onclick="openCanceled()">BATAL<span id="canceledButtonCount" class="count">0</span></button>
         <button class="bottom-btn history" onclick="openHistory()">RIWAYAT</button>
     </div>
 </div>
@@ -169,14 +178,36 @@ button{font:inherit}
     </div>
 </div>
 
+<!-- DIBATALKAN -->
+<div id="canceledModal" class="modal" onclick="closeModalOutside(event,'canceledModal')">
+    <div class="sheet">
+        <div class="sheet-head">
+            <div class="sheet-title">RESI DIBATALKAN (<span id="canceledCount">0</span>)</div>
+            <button class="sheet-close" onclick="closeModal('canceledModal')">TUTUP</button>
+        </div>
+        <div class="sheet-body">
+            <div class="form-box">
+                <label>INPUT RESI YANG DIBATALKAN</label>
+                <div class="form-row">
+                    <input id="canceledResiInput" type="text" placeholder="Masukkan nomor resi" autocomplete="off">
+                    <button onclick="addCanceledResi()">SIMPAN</button>
+                </div>
+            </div>
+            <input id="canceledSearch" class="search" type="search" placeholder="Cari nomor resi..." oninput="renderCanceled()">
+            <div class="toolbar">
+                <button class="tool-btn danger" onclick="deleteAllCanceled()">HAPUS SEMUA</button>
+            </div>
+            <div id="canceledList" class="list"></div>
+        </div>
+    </div>
+</div>
+
 <script src="config.js"></script>
 
 <script>
-/* =========================================================
-   CONFIG
-========================================================= */
+/* ===== CONFIG ===== */
 
-const SOURCE_NAME = "hr";   // backend khusus HR; tidak memakai backend SRF Pengiriman
+const SOURCE_NAME = "hr";
 
 const ROBOT_CONFIG = {
     enabled: localStorage.getItem("srf_hr_robot") !== "off",
@@ -192,6 +223,9 @@ const ROBOT_CONFIG = {
         resiTidakDikenal: "Resi tidak dikenal",
         doubleQueue: "Resi sudah di scan, ada diantrean",
         doubleHistory: "Resi pernah di scan",
+        resiDibatalkan: "Paket dibatalkan",
+        resiDibatalkanBerhasil: "Resi berhasil dimasukkan ke daftar dibatalkan",
+        resiSudahDibatalkan: "Paket ini sudah dibatalkan",
         syncMulai: "Memulai sinkronisasi",
         syncBerhasil: "resi berhasil disinkronkan",
         syncGagal: "Sinkronisasi gagal",
@@ -208,13 +242,13 @@ const SCAN_CONFIG = {
 
 const STORAGE_QUEUE = "srf_hr_queue_v1";
 const STORAGE_HISTORY = "srf_hr_history_v1";
+const STORAGE_CANCELED = "srf_hr_canceled_v1";
 
-/* =========================================================
-   STATE
-========================================================= */
+/* ===== STATE ===== */
 
 let localData = loadJSON(STORAGE_QUEUE, []);
 let scanHistory = loadJSON(STORAGE_HISTORY, []);
+let canceledResi = loadJSON(STORAGE_CANCELED, []);
 
 let html5QrCode = null;
 let cameraRunning = false;
@@ -236,6 +270,7 @@ function saveData(){
     try{
         localStorage.setItem(STORAGE_QUEUE, JSON.stringify(localData));
         localStorage.setItem(STORAGE_HISTORY, JSON.stringify(scanHistory));
+        localStorage.setItem(STORAGE_CANCELED, JSON.stringify(canceledResi));
     }catch(e){
         showNotif("PENYIMPANAN HP PENUH", "error");
     }
@@ -253,14 +288,13 @@ function getTargetUrl(){
     return "";
 }
 
-/* =========================================================
-   LOAD
-========================================================= */
+/* ===== LOAD ===== */
 
 window.addEventListener("load", ()=>{
     updateUI();
     renderQueue();
     renderHistory();
+    renderCanceled();
     updateStats();
     updateFlashButton();
     updateRobotButton();
@@ -274,9 +308,7 @@ function updateUI(){
     document.getElementById("queueButtonCount").innerText = n;
 }
 
-/* =========================================================
-   STATISTIK (dihitung dari riwayat di HP)
-========================================================= */
+/* ===== STATISTIK (dari riwayat di HP) ===== */
 
 function updateStats(){
     const now = new Date();
@@ -302,9 +334,7 @@ function updateStats(){
     document.getElementById("mingguIni").innerText = minggu;
 }
 
-/* =========================================================
-   STATUS / NOTIF / BEEP / FEEDBACK / SPEAK
-========================================================= */
+/* ===== STATUS / NOTIF / BEEP / FEEDBACK / SPEAK ===== */
 
 function setStatus(type, text){
     const lamp = document.getElementById("lamp");
@@ -386,9 +416,7 @@ function toggleRobotVoice(){
     updateRobotButton();
 }
 
-/* =========================================================
-   RESI  (aturan awalan SAMA dengan Apps Script)
-========================================================= */
+/* ===== RESI (aturan awalan SAMA dengan Apps Script) ===== */
 
 function normalizeResi(resi){
     return String(resi || "").trim().toUpperCase().replace(/\s+/g, "").replace(/[^A-Z0-9]/g, "");
@@ -437,6 +465,11 @@ function findHistory(resi){
     return scanHistory.find(x => normalizeResi(x.resi) === r && x.status !== "INVALID");
 }
 
+function isCanceledResi(resi){
+    const r = normalizeResi(resi);
+    return canceledResi.some(x => normalizeResi(x) === r);
+}
+
 function doubleAlert(message, robotText){
     if(SCAN_CONFIG.beepDouble){
         beep(350, .08);
@@ -447,13 +480,20 @@ function doubleAlert(message, robotText){
     speak(robotText);
 }
 
-/* =========================================================
-   SIMPAN LOKAL
-========================================================= */
+/* ===== SIMPAN LOKAL ===== */
 
 function simpanLokal(resi){
     resi = normalizeResi(resi);
     if(!resi) return false;
+
+    // Resi dibatalkan: diblokir
+    if(isCanceledResi(resi)){
+        beep(220, .45);
+        setStatus("red", "PAKET DIBATALKAN • " + resi);
+        showNotif("PAKET DI BATALKAN", "error");
+        speak(ROBOT_CONFIG.pesan.resiDibatalkan);
+        return false;
+    }
 
     const ekspedisi = getEkspedisi(resi);
 
@@ -501,9 +541,7 @@ function simpanLokal(resi){
     return true;
 }
 
-/* =========================================================
-   KAMERA
-========================================================= */
+/* ===== KAMERA ===== */
 
 async function toggleCamera(){
     if(cameraRunning) await stopCamera();
@@ -611,9 +649,7 @@ async function stopCamera(){
     setStatus("yellow", ROBOT_CONFIG.pesan.kameraBerhenti);
 }
 
-/* =========================================================
-   FLASH
-========================================================= */
+/* ===== FLASH ===== */
 
 async function toggleFlash(){
     if(!cameraRunning){
@@ -679,9 +715,7 @@ function updateFlashButton(){
     }
 }
 
-/* =========================================================
-   ANTREAN
-========================================================= */
+/* ===== ANTREAN ===== */
 
 function openQueue(){
     renderQueue();
@@ -753,9 +787,7 @@ function clearQueue(){
     showNotif("ANTREAN DIKOSONGKAN", "success");
 }
 
-/* =========================================================
-   RIWAYAT
-========================================================= */
+/* ===== RIWAYAT ===== */
 
 function openHistory(){
     document.getElementById("historyModal").classList.add("open");
@@ -845,9 +877,124 @@ function deleteAllHistory(){
     showNotif("RIWAYAT DIHAPUS", "success");
 }
 
-/* =========================================================
-   SYNC KE SHEET
-========================================================= */
+/* ===== RESI DIBATALKAN ===== */
+
+function updateCanceledUI(){
+    document.getElementById("canceledButtonCount").innerText = canceledResi.length;
+    document.getElementById("canceledCount").innerText = canceledResi.length;
+}
+
+function openCanceled(){
+    renderCanceled();
+    document.getElementById("canceledModal").classList.add("open");
+    setTimeout(()=>document.getElementById("canceledResiInput").focus(), 100);
+}
+
+function addCanceledResi(){
+    const input = document.getElementById("canceledResiInput");
+    const resi = normalizeResi(input.value);
+
+    if(!resi){
+        showNotif("MASUKKAN NOMOR RESI", "warning");
+        input.focus();
+        return;
+    }
+
+    if(isCanceledResi(resi)){
+        beep(250, .25);
+        setStatus("red", "RESI SUDAH DIBATALKAN");
+        showNotif("RESI SUDAH ADA DI DAFTAR BATAL", "warning");
+        speak(ROBOT_CONFIG.pesan.resiSudahDibatalkan);
+        input.select();
+        return;
+    }
+
+    canceledResi.unshift(resi);
+
+    // Kalau masih di antrean, keluarkan supaya tidak ikut ter-sync
+    if(findQueue(resi)){
+        localData = localData.filter(x => normalizeResi(x) !== resi);
+        scanHistory = scanHistory.filter(x => !(normalizeResi(x.resi) === resi && x.status === "ANTREAN"));
+    }
+
+    saveData();
+    updateUI();
+    renderQueue();
+    renderHistory();
+    updateStats();
+    renderCanceled();
+
+    input.value = "";
+    input.focus();
+
+    beep(500, .12);
+    setStatus("red", "RESI DIBATALKAN • " + resi);
+    showNotif("RESI BERHASIL DIBATALKAN", "success");
+    speak(ROBOT_CONFIG.pesan.resiDibatalkanBerhasil);
+}
+
+function renderCanceled(){
+    const list = document.getElementById("canceledList");
+    const search = normalizeResi(document.getElementById("canceledSearch")?.value || "");
+
+    list.innerHTML = "";
+
+    const data = search ? canceledResi.filter(r => normalizeResi(r).includes(search)) : canceledResi;
+
+    if(data.length === 0){
+        list.innerHTML = '<div class="empty">Belum ada resi dibatalkan</div>';
+    }else{
+        data.forEach(resi=>{
+            const div = document.createElement("div");
+            div.className = "item";
+            div.innerHTML = `
+                <div class="item-main">
+                    <div class="item-resi">${escapeHTML(resi)}</div>
+                    <div class="item-meta">DIBATALKAN • TERSIMPAN DI HP</div>
+                </div>
+                <button class="item-delete" data-resi="${escapeHTML(resi)}">HAPUS</button>
+            `;
+            list.appendChild(div);
+        });
+    }
+
+    updateCanceledUI();
+}
+
+document.getElementById("canceledList").addEventListener("click", e=>{
+    const btn = e.target.closest(".item-delete");
+    if(!btn) return;
+
+    const r = normalizeResi(btn.dataset.resi);
+    if(!confirm("Hapus resi dari daftar DIBATALKAN?\n\n" + r)) return;
+
+    canceledResi = canceledResi.filter(x => normalizeResi(x) !== r);
+    saveData();
+    renderCanceled();
+    showNotif("RESI DIBATALKAN DIHAPUS", "success");
+});
+
+function deleteAllCanceled(){
+    if(canceledResi.length === 0){
+        showNotif("DAFTAR BATAL SUDAH KOSONG", "warning");
+        return;
+    }
+    if(!confirm("HAPUS SEMUA RESI DIBATALKAN?\n\nDaftar ini hanya tersimpan di HP.")) return;
+
+    canceledResi = [];
+    saveData();
+    renderCanceled();
+    showNotif("SEMUA RESI BATAL DIHAPUS", "success");
+}
+
+document.getElementById("canceledResiInput").addEventListener("keydown", e=>{
+    if(e.key === "Enter"){
+        e.preventDefault();
+        addCanceledResi();
+    }
+});
+
+/* ===== SYNC KE SHEET ===== */
 
 function markHistory(resi, status, serverResult){
     const r = normalizeResi(resi);
@@ -924,6 +1071,7 @@ async function syncKeServer(){
         }
 
         let berhasil = 0, duplicate = 0, invalid = 0, gagal = 0;
+        let pesanGagal = "";
         const tetapDiAntrean = new Set();
 
         results.forEach(item=>{
@@ -942,6 +1090,8 @@ async function syncKeServer(){
                 // error / failed / status lain: tetap di antrean, coba sync lagi nanti
                 gagal++;
                 tetapDiAntrean.add(normalizeResi(item.resi));
+                if(!pesanGagal) pesanGagal = item.message || "tidak diketahui";
+                console.error("Gagal:", item.resi, item.message);
             }
         });
 
@@ -960,8 +1110,8 @@ async function syncKeServer(){
         updateStats();
 
         if(gagal > 0 && berhasil === 0 && duplicate === 0){
-            setStatus("red", `Sync gagal • ${gagal} resi`);
-            showNotif(`SYNC GAGAL • ${gagal} RESI`, "error");
+            setStatus("red", `Sync gagal • ${gagal} resi • ${pesanGagal}`);
+            showNotif(`SYNC GAGAL: ${pesanGagal}`, "error");
             speak(ROBOT_CONFIG.pesan.syncGagal);
         }else if(berhasil > 0 && (duplicate > 0 || invalid > 0 || gagal > 0)){
             const info = [];
@@ -1000,9 +1150,7 @@ async function syncKeServer(){
     }
 }
 
-/* =========================================================
-   MODAL
-========================================================= */
+/* ===== MODAL ===== */
 
 function closeModal(id){
     document.getElementById(id).classList.remove("open");
@@ -1012,9 +1160,7 @@ function closeModalOutside(e, id){
     if(e.target.id === id) closeModal(id);
 }
 
-/* =========================================================
-   UTIL
-========================================================= */
+/* ===== UTIL ===== */
 
 function escapeHTML(text){
     return String(text)
